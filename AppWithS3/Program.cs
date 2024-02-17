@@ -1,23 +1,60 @@
-var builder = WebApplication.CreateBuilder(args);
+using Amazon.DynamoDBv2;
+using Amazon.S3;
+using AppWithS3.Repositories;
+using AppWithS3.Services;
+using AppWithS3.Validation;
+using FluentValidation.AspNetCore;
+using Microsoft.Net.Http.Headers;
 
-// Add services to the container.
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = Directory.GetCurrentDirectory()
+});
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+var config = builder.Configuration;
+config.AddEnvironmentVariables("CustomersApi_");
+
+builder.Services.AddControllers().AddFluentValidation(x =>
+{
+    x.RegisterValidatorsFromAssemblyContaining<Program>();
+    x.DisableDataAnnotationsValidation = true;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+//builder.Services.AddSingleton<IAmazonS3, AmazonS3Client>();
+var awsConf = builder.Configuration.GetAWSOptions();
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddAWSService<IAmazonS3>();
+
+builder.Services.AddSingleton<ICustomerImageService, CustomerImageService>();
+
+builder.Services.AddSingleton<IAmazonDynamoDB, AmazonDynamoDBClient>();
+builder.Services.AddSingleton<ICustomerRepository, CustomerRepository>();
+builder.Services.AddSingleton<ICustomerService, CustomerService>();
+builder.Services.AddSingleton<IGitHubService, GitHubService>();
+
+builder.Services.AddHttpClient("GitHub", httpClient =>
+{
+    httpClient.BaseAddress = new Uri(config.GetValue<string>("GitHub:ApiBaseUrl")!);
+    httpClient.DefaultRequestHeaders.Add(
+        HeaderNames.Accept, "application/vnd.github.v3+json");
+    httpClient.DefaultRequestHeaders.Add(
+        HeaderNames.UserAgent, $"Course-{Environment.MachineName}");
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseHttpsRedirection();
 app.UseAuthorization();
-
+app.UseMiddleware<ValidationExceptionMiddleware>();
 app.MapControllers();
 
 app.Run();

@@ -1,23 +1,24 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace CustomerApi.Contracts.Data;
+namespace AppWithS3.Contracts.Data;
 
 public class CustomerDto
 {
     [JsonPropertyName("pk")]
-    public string Pk => Id.ToString();
+    public string Pk => Id;
 
     [JsonPropertyName("sk")]
-    public string Sk => Id.ToString();
+    public string Sk => Pk;
 
-    public Guid Id { get; init; } = default!;
+    public string Id { get; init; } = default!;
 
     public string GitHubUsername { get; init; } = default!;
-    
+
     public string FullName { get; init; } = default!;
-    
+
     public string Email { get; init; } = default!;
 
     public DateTime DateOfBirth { get; init; }
-    public DateTime UpdateAt { get; set; }
+
+    public DateTime UpdatedAt { get; set; }
 }
